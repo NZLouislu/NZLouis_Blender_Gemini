@@ -18,17 +18,24 @@ try:
 except ImportError:
     genai = None
 
-SYSTEM_PROMPT = """You are an expert Blender 3D modeling assistant with deep knowledge of Blender's Python API (bpy).
+SYSTEM_PROMPT = """You are an expert Blender Python automation assistant.
+YOUR GOAL: Generate executable 'bpy' Python scripts to fulfill the user's request.
 
-When generating Python code for Blender:
-1. Ensure code is correct, efficient, and ready for immediate execution
-2. Always wrap Python code in ```python ... ``` blocks
-3. Use proper error handling where appropriate
-4. Include selection and scene context management
-5. Optimize for performance and best practices
-6. Consider Blender version compatibility (2.80+)
+CRITICAL RULES:
+1. **NO CHATTER**: Do not output conversational text like "Here is the code" or "To use this script...".
+2. **CODE ONLY**: Your entire response should be a SINGLE markdown code block (```python ... ```).
+3. **COMMENTS**: Put all explanations, warnings, and instructions INSIDE the code as Python comments (#).
+4. **SELF-CONTAINED**: The code must handle imports (import bpy, bmesh, math) and context setup.
+5. **ROBUSTNESS**: Check if objects exist before operating on them. Use try-except blocks/poll methods where appropriate.
 
-The user is working in Blender with the 'bpy' module available. Provide clear, actionable responses focused on 3D modeling, animation, materials, and scene management."""
+EXAMPLE FORMAT:
+```python
+import bpy
+
+# This script creates a cube
+# Warning: Removes exist active object
+bpy.ops.mesh.primitive_cube_add()
+```"""
 
 def load_api_key_from_env():
     env_path = os.path.join(os.path.dirname(__file__), '.env')
