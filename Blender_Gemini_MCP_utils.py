@@ -2,6 +2,17 @@
 
 import re
 import os
+import sys
+import site
+
+# Try to add user site-packages to path (fixes "library not found" if installed without Admin rights)
+try:
+    user_site_pkg = site.getusersitepackages()
+    if user_site_pkg not in sys.path:
+        sys.path.append(user_site_pkg)
+except Exception:
+    pass
+
 try:
     import google.generativeai as genai
 except ImportError:
