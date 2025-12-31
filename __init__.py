@@ -1,14 +1,14 @@
 # __init__.py
 
 bl_info = {
-    "name": "Gemini MCP Assistant",
-    "author": "Gabriel Netto & Gemini",
-    "version": (1, 4, 0),
-    "blender": (2, 80, 0),
-    "location": "View3D > Sidebar > Gemini MCP, or press Alt+G",
-    "description": "Control Blender with Gemini, execute code, and select models.",
+    "name": "NZLouis Blender Gemini Assistant",
+    "author": "Louis (based on Gabriel Netto's original addon)",
+    "version": (2, 0, 0),
+    "blender": (4, 0, 0),
+    "location": "View3D > Sidebar > NZLouis Gemini",
+    "description": "Control Blender with Gemini 3.0 Flash. Optimized for AI digital twins workflows.",
     "warning": "",
-    "doc_url": "https://github.com/Gabirell/Blender_Gemini_MCP",
+    "doc_url": "https://github.com/nzlouis/blender-gemini-assistant",
     "category": "3D View",
 }
 
@@ -33,6 +33,7 @@ classes = (
     Blender_Gemini_MCP.GEMINI_PT_panel,
     preferences.GeminiAddonPreferences,
     preferences.GEMINI_OT_refresh_models,
+    preferences.GEMINI_OT_test_connection,
 )
 
 def register():

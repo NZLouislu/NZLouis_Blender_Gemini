@@ -3,7 +3,12 @@
 import bpy
 from . import Blender_Gemini_MCP_utils as utils
 
-_model_list_cache = [("gemini-1.5-flash-latest", "Gemini 1.5 Flash", "Default model")]
+_model_list_cache = [
+    ("gemini-3-flash-preview", "Gemini 3 Flash Preview", "Latest Gemini 3.0 model"),
+    ("gemini-2.5-flash", "Gemini 2.5 Flash", "Fast and efficient"),
+    ("gemini-2.5-pro", "Gemini 2.5 Pro", "Advanced reasoning"),
+    ("gemini-2.0-flash-exp", "Gemini 2.0 Flash Exp", "Stable fallback"),
+]
 
 def get_models_for_enum(self, context):
     global _model_list_cache
@@ -17,7 +22,7 @@ def refresh_models_background(api_key):
         _model_list_cache = models
         print(f"Models found: {[m[0] for m in models]}")
     else:
-        _model_list_cache = [("gemini-1.5-flash-latest", "No models found (check API Key)", "")]
+        _model_list_cache = [("gemini-3-flash-preview", "No models found (check API Key)", "")]
         print("No models found or API key is invalid.")
     
     for window in bpy.context.window_manager.windows:
@@ -49,11 +54,47 @@ class GeminiAddonPreferences(bpy.types.AddonPreferences):
     
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "api_key")
+        
+        row = layout.row(align=True)
+        row.prop(self, "api_key")
+        
+        # Test Connection Button
+        row.operator("gemini.test_connection", text="", icon='CHECKMARK')
         
         row = layout.row()
         row.prop(self, "model_list")
         row.operator("gemini.refresh_models", text="", icon='FILE_REFRESH')
+
+class GEMINI_OT_test_connection(bpy.types.Operator):
+    bl_idname = "gemini.test_connection"
+    bl_label = "Test API Connection"
+    bl_description = "Test connection to Gemini API (loads from .env if key is empty)"
+    
+    def execute(self, context):
+        prefs = context.preferences.addons[__package__].preferences
+        api_key = prefs.api_key
+        
+        # Try loading from .env if empty
+        if not api_key:
+            env_key = utils.load_api_key_from_env()
+            if env_key:
+                prefs.api_key = env_key
+                api_key = env_key
+                self.report({'INFO'}, "API Key loaded from .env file")
+            else:
+                self.report({'WARNING'}, "No API Key found in preferences or .env file")
+                return {'CANCELLED'}
+
+        success, message = utils.test_api_connection(api_key)
+        
+        if success:
+            self.report({'INFO'}, message)
+            # Auto-refresh models if connection is good
+            refresh_models_background(api_key)
+        else:
+            self.report({'ERROR'}, message)
+            
+        return {'FINISHED'}
 
 class GEMINI_OT_refresh_models(bpy.types.Operator):
     bl_idname = "gemini.refresh_models"
@@ -61,8 +102,18 @@ class GEMINI_OT_refresh_models(bpy.types.Operator):
     
     def execute(self, context):
         prefs = context.preferences.addons[__package__].preferences
-        if prefs.api_key:
-            refresh_models_background(prefs.api_key)
+        api_key = prefs.api_key
+        
+        # Also try .env here
+        if not api_key:
+            env_key = utils.load_api_key_from_env()
+            if env_key:
+                prefs.api_key = env_key
+                api_key = env_key
+                self.report({'INFO'}, "API Key loaded from .env file")
+        
+        if api_key:
+            refresh_models_background(api_key)
             self.report({'INFO'}, "Model list refreshed.")
         else:
             self.report({'WARNING'}, "Please enter an API key first.")

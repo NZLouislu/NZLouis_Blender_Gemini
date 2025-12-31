@@ -119,11 +119,11 @@ class GEMINI_OT_popup_window(bpy.types.Operator):
         return {'FINISHED'}
 
 class GEMINI_PT_panel(bpy.types.Panel):
-    bl_label = "Gemini MCP Assistant"
+    bl_label = "NZLouis Blender Gemini Assistant"
     bl_idname = "GEMINI_PT_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Gemini MCP'
+    bl_category = 'NZLouis Gemini'
 
     def draw(self, context):
         layout = self.layout

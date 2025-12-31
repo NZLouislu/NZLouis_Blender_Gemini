@@ -1,100 +1,73 @@
-Blender Gemini MCP Assistant
+# NZLouis Blender Gemini Assistant
 
-This addon integrates Google's Gemini AI directly into Blender, allowing you to use natural language to generate and execute Python scripts, ask for help, and control the 3D environment.
+<p align="center">
+  <img src="https://img.shields.io/badge/Blender-4.0%2B-orange" alt="Blender Version">
+  <img src="https://img.shields.io/badge/Gemini-3.0%20Flash-blue" alt="Gemini Version">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
+</p>
 
-Features:
+**NZLouis Blender Gemini Assistant** is a next-generation AI copilot for Blender, powered by Google's latest **Gemini 3.0 Flash**. 
 
-Blender-Aware Context: Gemini is instructed to act as a Blender expert. It knows it's inside Blender and provides relevant answers and code.
+Designed for **Digital Twins**, **Architectural Visualization**, and **Robotics Simulation** workflows, this tool allows you to control Blender using natural language, execute Python scripts automatically, and accelerate your 3D creation process.
 
-Code Execution: When Gemini generates a Python script, an "Execute Code" button appears, allowing you to run the script and modify your scene directly.
+> **Attribution**: This project is based on the original `Blender_Gemini_MCP` addon by Gabriel Netto, licensed under MIT. It has been significantly enhanced by Louis with Gemini 3.0 support and workflow optimizations.
 
-Dynamic Model Selection: Choose any available Gemini model from a list that updates automatically when you enter your API key. Always use the latest and most powerful models.
+## ✨ Key Features
 
-Popup Window: Press Alt+G anywhere in the 3D View to open a quick prompt window, so you don't need to keep the sidebar open.
+- **🧠 Powered by Gemini 3.0**: Leverages the newest `gemini-3-flash-preview` (Dec 2025) for superior reasoning logic and complex script generation.
+- **🤖 Digital Twin Ready**: Optimized system prompts for scene construction, object manipulation, and procedural generation.
+- **🔌 Smart Connection**: Built-in connection tester and multi-model fallback (Gemini 3.0 -> 2.5 -> 2.0).
+- **🔐 Secure & Professional**: Supports `.env` file configuration for secure API key management in professional environments.
+- **⚡ Non-Blocking UI**: Asynchronous execution ensures Blender never freezes while the AI is thinking.
 
-Installation:
+## 📥 Installation
 
-1. Download the Addon
-Go to the Releases page of this repository.
+### 1. Install the Addon
+1. Download the repository as a **ZIP** file.
+2. Open Blender → `Edit` → `Preferences` → `Add-ons`.
+3. Click **Install...** and select the ZIP file.
+4. Enable the **"NZLouis Blender Gemini Assistant"** addon.
 
-Download the latest Blender_Gemini_MCP_Plugin.zip file.
+### 2. Install Dependencies
+You must install the `google-generativeai` library into Blender's Python environment.
 
-2. Install the Addon in Blender
-Open Blender and go to Edit > Preferences > Add-ons.
+**Windows:**
+Run CMD as Administrator:
+```bash
+"C:\Program Files\Blender Foundation\Blender 4.0\4.0\python\bin\python.exe" -m pip install google-generativeai
+```
 
-Click Install....
+**macOS/Linux:**
+```bash
+/path/to/blender/python/bin/python3.11 -m pip install google-generativeai
+```
 
-Navigate to and select the Blender_Gemini_MCP_Plugin.zip file you just downloaded. Do not unzip it.
+## 🚀 Usage
 
-Enable the addon by checking the box next to "Gemini MCP Assistant".
+### 1. Configure
+- Go to Add-on Preferences.
+- Enter your [Google API Key](https://aistudio.google.com/app/apikey) (or use a `.env` file).
+- Click the **Test Connection (✓)** button.
 
-3. Install Required Python Libraries
-This addon will not work without its required third-party libraries. You must install them into Blender's internal Python environment.
+### 2. Create
+- Press **N** in the 3D Viewport to open the sidebar.
+- Navigate to the **"NZLouis Gemini"** tab.
+- Enter a prompt, e.g.:
+  > "Create a 10x10 grid of city buildings with random heights and apply a concrete material."
+- Click **Execute Code** and watch your scene build itself.
 
-How to Install:
+### 3. Quick Access
+- Press **Alt + G** anywhere to bring up the quick prompt window.
 
-Find the path to Blender's Python executable.
+## 🗺️ Roadmap & Vision
 
-Windows: C:\Program Files\Blender Foundation\Blender <version>\<version>\python\bin
+We are building the future of AI-assisted 3D creation.
+- [x] Gemini 3.0 Integration
+- [x] Connection Diagnostics
+- [ ] Context-Aware Scene Reading (Coming Soon)
+- [ ] Automated Error Correction Loop
+- [ ] Robotics Simulation Presets
 
-macOS: /Applications/Blender.app/Contents/Resources/<version>/python/bin
+## 📄 License
 
-Linux: /<blender_install_dir>/<version>/python/bin
-
-Open your system's command line (Command Prompt on Windows, Terminal on macOS/Linux).
-
-Navigate to the directory from step 1 using the cd command. For example, on Windows:
-
-cd "C:\Program Files\Blender Foundation\Blender 4.1\4.1\python\bin"
-
-Run the following commands to install the libraries:
-
-# For Windows
-python.exe -m pip install --upgrade pip
-python.exe -m pip install google-generativeai SpeechRecognition PyAudio
-
-# For macOS / Linux
-./python3.11 -m pip install --upgrade pip
-./python3.11 -m pip install google-generativeai SpeechRecognition PyAudio
-
-Note: The Python executable name (python.exe, ./python3.11, etc.) might differ slightly depending on your Blender version.
-
-Configuration:
-
-Get a Gemini API Key:
-
-Go to Google AI Studio and create a free API key.
-
-Set up the Addon in Blender:
-
-Go to Edit > Preferences > Add-ons.
-
-Find "Gemini MCP Assistant" in the list and expand it.
-
-Paste your API key into the "Gemini API Key" field.
-
-The list of available models will refresh automatically. You can select your preferred model from the dropdown menu.
-
-How to Use:
-
-Main Panel:
-Open the 3D Viewport's sidebar by pressing N.
-
-Go to the "Gemini MCP" tab.
-
-Type your prompt (e.g., "Create a sphere and add a subdivision surface modifier") and click "Send Prompt".
-
-The response will appear in the panel. If it contains code, the "Execute Code" button will appear.
-
-Popup Window:
-
-In the 3D Viewport, press Alt+G.
-
-A small window will pop up. Type your prompt there and press Enter or click "OK".
-
-The response will be processed and will appear in the main panel.
-
-Code Execution
-After Gemini provides a response containing a Python script, click the Execute Code button that appears at the bottom of the panel.
-
-The script will run immediately, affecting your current scene.
+This project is licensed under the **MIT License**. You are free to fork, modify, and distribute it.

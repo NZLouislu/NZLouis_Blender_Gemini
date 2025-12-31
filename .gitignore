@@ -1,0 +1,12 @@
+# User requested ignores
+.env
+docs/
+
+# Standard Python ignores
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Blender Addon ignores
+*.zip
+test_installation.py
