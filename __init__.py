@@ -26,6 +26,12 @@ importlib.reload(preferences)
 addon_keymaps = []
 
 classes = (
+    Blender_Gemini_MCP.GeminiImageItem,  # Must be before Properties
+    Blender_Gemini_MCP.GEMINI_MT_image_menu,
+    Blender_Gemini_MCP.GEMINI_OT_add_image,
+    Blender_Gemini_MCP.GEMINI_OT_paste_image,
+    Blender_Gemini_MCP.GEMINI_OT_remove_image,
+    Blender_Gemini_MCP.GEMINI_OT_capture_screenshot,
     Blender_Gemini_MCP.GeminiProperties,
     Blender_Gemini_MCP.GEMINI_OT_send_prompt,
     Blender_Gemini_MCP.GEMINI_OT_execute_code,
