@@ -32,6 +32,15 @@ class GeminiProperties(bpy.types.PropertyGroup):
         name="Input Text", 
         type=bpy.types.Text
     )
+    
+    last_error: bpy.props.StringProperty(
+        name="Last Error",
+        default=""
+    )
+    last_failed_code: bpy.props.StringProperty(
+        name="Last Failed Code",
+        default=""
+    )
 
 class GEMINI_OT_add_image(bpy.types.Operator):
     bl_label = "Add Image"
@@ -265,13 +274,56 @@ class GEMINI_OT_execute_code(bpy.types.Operator):
             try:
                 exec(code_to_run, {'bpy': bpy})
                 self.report({'INFO'}, "Code executed successfully.")
+                # Clear error state on success
+                props.last_error = ""
+                props.last_failed_code = ""
             except Exception as e:
-                error_message = f"Error executing Python code: {e}"
+                error_message = f"Error: {str(e)}"
                 self.report({'ERROR'}, error_message)
-                props.response += f"\n\n--- EXECUTION ERROR ---\n{error_message}"
+                
+                # Store error context for potential retry
+                props.last_error = str(e)
+                props.last_failed_code = code_to_run
+                
+                # Append error to response for visibility
+                props.response += f"\n\n--- EXECUTION ERROR ---\n{error_message}\n\nTip: This may be a version compatibility issue. Try asking Gemini to fix the error."
         else:
             self.report({'WARNING'}, "No Python code block found in the response.")
         
+        return {'FINISHED'}
+
+class GEMINI_OT_fix_error(bpy.types.Operator):
+    bl_label = "Ask Gemini to Fix Error"
+    bl_idname = "gemini.fix_error"
+    bl_description = "Send error details to Gemini and ask for a corrected version"
+
+    def execute(self, context):
+        props = context.scene.gemini_properties
+        
+        if not props.last_error:
+            self.report({'WARNING'}, "No error to fix.")
+            return {'CANCELLED'}
+        
+        # Construct a fix request prompt
+        fix_prompt = f"""The previous code caused this error:
+
+ERROR: {props.last_error}
+
+FAILED CODE:
+```python
+{props.last_failed_code}
+```
+
+Please provide a CORRECTED version that fixes this error. Remember:
+- Use only APIs compatible with Blender {utils.get_blender_version()}
+- Available render engines: BLENDER_EEVEE, BLENDER_WORKBENCH, CYCLES
+- Return ONLY the corrected ```python code block```"""
+        
+        # Set the prompt and trigger send
+        props.prompt = fix_prompt
+        bpy.ops.gemini.send_prompt('EXEC_DEFAULT')
+        
+        self.report({'INFO'}, "Asking Gemini to fix the error...")
         return {'FINISHED'}
 
 class GEMINI_OT_popup_window(bpy.types.Operator):
@@ -384,8 +436,14 @@ class GEMINI_PT_panel(bpy.types.Panel):
             else:
                 col.label(text="Awaiting prompt...")
             
+            # Action buttons for code execution
             if "```python" in props.response:
-                layout.operator("gemini.execute_code", icon='PLAY')
+                row = layout.row(align=True)
+                row.operator("gemini.execute_code", icon='PLAY', text="Execute Code")
+                
+                # Show 'Fix Error' button if there was an execution error
+                if props.last_error:
+                    row.operator("gemini.fix_error", icon='FILE_REFRESH', text="Fix Error")
 
         except Exception as e:
             layout.label(text="UI Error: Check Console", icon='ERROR')

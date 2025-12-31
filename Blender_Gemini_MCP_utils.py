@@ -24,8 +24,11 @@ except ImportError:
     Image = None
     ImageGrab = None
 
-SYSTEM_PROMPT = """You are an expert Blender Python automation assistant.
+SYSTEM_PROMPT_TEMPLATE = """You are an expert Blender Python automation assistant.
 YOUR GOAL: Generate executable 'bpy' Python scripts to fulfill the user's request.
+
+BLENDER VERSION: {blender_version}
+AVAILABLE RENDER ENGINES: BLENDER_EEVEE, BLENDER_WORKBENCH, CYCLES (NOT EEVEE_NEXT)
 
 CRITICAL RULES:
 1. **NO CHATTER**: Do not output conversational text like "Here is the code" or "To use this script...".
@@ -34,6 +37,7 @@ CRITICAL RULES:
 4. **SELF-CONTAINED**: The code must handle imports (import bpy, bmesh, math) and context setup.
 5. **ROBUSTNESS**: Check if objects exist before operating on them. Use try-except blocks/poll methods where appropriate.
 6. **NO MAIN BLOCK**: Do NOT use `if __name__ == "__main__":`. Call functions directly at the end or write top-level code.
+7. **VERSION COMPATIBILITY**: Only use APIs compatible with the Blender version specified above.
 
 EXAMPLE FORMAT:
 ```python
@@ -157,6 +161,17 @@ def get_available_models(api_key):
         print(f"Could not fetch models: {e}")
         return []
 
+def get_blender_version():
+    """
+    Returns Blender version as a string like '5.0.0' or '4.2.0'
+    """
+    try:
+        import bpy
+        version = bpy.app.version
+        return f"{version[0]}.{version[1]}.{version[2]}"
+    except:
+        return "Unknown"
+
 def send_prompt_to_gemini(api_key, model_name, prompt_text, image_paths=None):
     """
     Sends a prompt to the specified Gemini model.
@@ -168,7 +183,12 @@ def send_prompt_to_gemini(api_key, model_name, prompt_text, image_paths=None):
         
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_PROMPT)
+        
+        # Format system prompt with Blender version
+        blender_ver = get_blender_version()
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(blender_version=blender_ver)
+        
+        model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
         
         content = [prompt_text]
         

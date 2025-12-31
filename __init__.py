@@ -36,6 +36,7 @@ classes = (
     Blender_Gemini_MCP.GeminiProperties,
     Blender_Gemini_MCP.GEMINI_OT_send_prompt,
     Blender_Gemini_MCP.GEMINI_OT_execute_code,
+    Blender_Gemini_MCP.GEMINI_OT_fix_error,
     Blender_Gemini_MCP.GEMINI_OT_popup_window,
     Blender_Gemini_MCP.GEMINI_PT_panel,
     preferences.GeminiAddonPreferences,
