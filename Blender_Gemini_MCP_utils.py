@@ -27,14 +27,17 @@ CRITICAL RULES:
 3. **COMMENTS**: Put all explanations, warnings, and instructions INSIDE the code as Python comments (#).
 4. **SELF-CONTAINED**: The code must handle imports (import bpy, bmesh, math) and context setup.
 5. **ROBUSTNESS**: Check if objects exist before operating on them. Use try-except blocks/poll methods where appropriate.
+6. **NO MAIN BLOCK**: Do NOT use `if __name__ == "__main__":`. Call functions directly at the end or write top-level code.
 
 EXAMPLE FORMAT:
 ```python
 import bpy
 
-# This script creates a cube
-# Warning: Removes exist active object
-bpy.ops.mesh.primitive_cube_add()
+def create_stuff():
+    bpy.ops.mesh.primitive_cube_add()
+
+# Call the function directly!
+create_stuff()
 ```"""
 
 def load_api_key_from_env():
