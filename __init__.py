@@ -32,6 +32,7 @@ classes = (
     Blender_Gemini_MCP.GEMINI_OT_paste_image,
     Blender_Gemini_MCP.GEMINI_OT_remove_image,
     Blender_Gemini_MCP.GEMINI_OT_capture_screenshot,
+    Blender_Gemini_MCP.GEMINI_OT_open_text_editor,
     Blender_Gemini_MCP.GeminiProperties,
     Blender_Gemini_MCP.GEMINI_OT_send_prompt,
     Blender_Gemini_MCP.GEMINI_OT_execute_code,

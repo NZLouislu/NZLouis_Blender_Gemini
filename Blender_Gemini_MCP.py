@@ -113,6 +113,41 @@ class GEMINI_OT_capture_screenshot(bpy.types.Operator):
             
         return {'FINISHED'}
 
+class GEMINI_OT_open_text_editor(bpy.types.Operator):
+    bl_label = "Open Multi-line Editor"
+    bl_idname = "gemini.open_text_editor"
+    bl_description = "Open a floating Text Editor for multi-line prompts (Ctrl+Enter to new line)"
+
+    def execute(self, context):
+        props = context.scene.gemini_properties
+        
+        # Ensure a text block exists
+        if not props.input_text_block:
+            if "Gemini Prompt" in bpy.data.texts:
+                props.input_text_block = bpy.data.texts["Gemini Prompt"]
+            else:
+                props.input_text_block = bpy.data.texts.new("Gemini Prompt")
+        
+        # Open a new window with the Text Editor
+        # We use a slight hack: duplicate the current area into a new window, then switch it.
+        # OR simpler: bpy.ops.screen.userpref_show() is for prefs.
+        # bpy.ops.wm.window_new() creates a new window.
+        
+        bpy.ops.wm.window_new()
+        new_window = context.window_manager.windows[-1]
+        area = new_window.screen.areas[0]
+        area.ui_type = 'TEXT_EDITOR'
+        
+        # Set the text space to use our text block
+        for space in area.spaces:
+            if space.type == 'TEXT_EDITOR':
+                space.text = props.input_text_block
+                # Optional: Enable syntax highlight or wrapping
+                space.show_word_wrap = True
+                space.show_line_numbers = True
+        
+        return {'FINISHED'}
+
 # Menu for the Image Button
 class GEMINI_MT_image_menu(bpy.types.Menu):
     bl_label = "Add Image"
@@ -300,25 +335,31 @@ class GEMINI_PT_panel(bpy.types.Panel):
         row.menu("GEMINI_MT_image_menu", text="", icon='IMAGE_DATA')
         
         # 2. Center: Input
-        # Note: scale_y works on the row, making the text box taller.
-        # This simulates the "3 lines" look requested, although it's still one logical line.
+        # Note: We removed scale_y=3.0 because standard StringProperty doesn't support 
+        # multi-line cursor correctly and it looked bad.
+        # Instead, we offer a dedicated "Edit" button for multi-line.
         sub = row.row(align=True)
-        sub.scale_y = 3.0 # Make it TALLER
+        # sub.scale_y = 1.0 # Default
         
         if props.use_text_block_input:
              sub.template_ID(props, "input_text_block", new="text.new", open="text.open")
+             # Add a small "Open Editor" button right next to it
+             sub.operator("gemini.open_text_editor", text="", icon='WINDOW')
         else:
              sub.prop(props, "prompt", text="")
         
         # 3. Right: Send Button
         sub_btn = row.row(align=True)
-        sub_btn.scale_y = 3.0 # Match height
         sub_btn.operator("gemini.send_prompt", text="", icon='PAPER_PLANE')
         
-        # Text Block Toggle (Small underneath or near)
-        # Putting it in a sub-row below meant for options
+        # Text Block Toggle
         row_opt = layout.row(align=True)
         row_opt.prop(props, "use_text_block_input", toggle=True, text="Use Multi-line Text Block", icon='FILE_TEXT')
+        
+        # If showing text block, give a big helper button
+        if props.use_text_block_input:
+            row_helper = layout.row()
+            row_helper.operator("gemini.open_text_editor", text="Open Multi-line Editor (Ctrl+Enter)", icon='new_window')
 
         layout.separator()
         layout.label(text="Gemini Response:")
