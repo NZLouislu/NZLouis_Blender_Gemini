@@ -299,84 +299,93 @@ class GEMINI_PT_panel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        props = context.scene.gemini_properties
-        prefs = context.preferences.addons[__package__].preferences
-        
-        if not prefs.api_key:
-            layout.label(text="Please set API Key in Preferences.", icon='ERROR')
-            return
-
-        # --- Attachments List ---
-        if props.images:
-            box = layout.box()
-            box.label(text="Attachments:", icon='clip')
-            row = box.row()
-            row.scale_x = 1.0
+        try:
+            props = context.scene.gemini_properties
+            # Safe preference access
+            addon_prefs = context.preferences.addons.get(__package__)
+            prefs = addon_prefs.preferences if addon_prefs else None
             
-            # Simple list of chips
-            # Ideally this would be a UIList but a horizontal flow is fine for few items
-            flow = box.grid_flow(row_major=True, columns=0, even_columns=False, even_rows=False, align=True)
-            for i, img in enumerate(props.images):
-                row = flow.row(align=True)
-                row.label(text=img.name, icon='IMAGE_DATA')
-                op = row.operator("gemini.remove_image", text="", icon='X')
-                op.index = i
+            if not prefs or not prefs.api_key:
+                layout.label(text="Please set API Key in Preferences.", icon='ERROR')
+                return
 
-        # --- Main Chat Input Area ---
-        layout.label(text="Deepmind Agent:")
-        
-        # We create a single row box to simulate the "Chat Area"
-        # [ Image Menu ] [ Text Input (Expanded) ] [ Send ]
-        
-        box = layout.box()
-        row = box.row(align=True)
-        
-        # 1. Left: Image Button (Menu)
-        row.menu("GEMINI_MT_image_menu", text="", icon='IMAGE_DATA')
-        
-        # 2. Center: Input
-        # Note: We removed scale_y=3.0 because standard StringProperty doesn't support 
-        # multi-line cursor correctly and it looked bad.
-        # Instead, we offer a dedicated "Edit" button for multi-line.
-        sub = row.row(align=True)
-        # sub.scale_y = 1.0 # Default
-        
-        if props.use_text_block_input:
-             sub.template_ID(props, "input_text_block", new="text.new", open="text.open")
-             # Add a small "Open Editor" button right next to it
-             sub.operator("gemini.open_text_editor", text="", icon='WINDOW')
-        else:
-             sub.prop(props, "prompt", text="")
-        
-        # 3. Right: Send Button
-        sub_btn = row.row(align=True)
-        sub_btn.operator("gemini.send_prompt", text="", icon='PAPER_PLANE')
-        
-        # Text Block Toggle
-        row_opt = layout.row(align=True)
-        row_opt.prop(props, "use_text_block_input", toggle=True, text="Use Multi-line Text Block", icon='FILE_TEXT')
-        
-        # If showing text block, give a big helper button
-        if props.use_text_block_input:
-            row_helper = layout.row()
-            row_helper.operator("gemini.open_text_editor", text="Open Multi-line Editor (Ctrl+Enter)", icon='new_window')
+            # --- Attachments List ---
+            if props.images:
+                box = layout.box()
+                box.label(text="Attachments:", icon='CLIP') # 'CLIP' might not exist, use 'FILE' or default
+                row = box.row()
+                
+                # Simple list of chips
+                flow = box.grid_flow(row_major=True, columns=0, even_columns=False, even_rows=False, align=True)
+                for i, img in enumerate(props.images):
+                    row = flow.row(align=True)
+                    row.label(text=img.name, icon='IMAGE_DATA')
+                    op = row.operator("gemini.remove_image", text="", icon='X')
+                    op.index = i
 
-        layout.separator()
-        layout.label(text="Gemini Response:")
-        
-        box = layout.box()
-        col = box.column()
+            # --- Main Chat Input Area ---
+            layout.label(text="Deepmind Agent:")
+            
+            box = layout.box()
+            row = box.row(align=True)
+            
+            # 1. Left: Image Button (Menu)
+            row.menu("GEMINI_MT_image_menu", text="", icon='IMAGE_DATA')
+            
+            # 2. Center: Input
+            sub = row.row(align=True)
+            
+            # Restore Height for "Textarea" feel (Requested by User)
+            if not props.use_text_block_input:
+                sub.scale_y = 2.5 
+            
+            if props.use_text_block_input:
+                 sub.template_ID(props, "input_text_block", new="text.new", open="text.open")
+                 sub.operator("gemini.open_text_editor", text="", icon='WINDOW') # 'WINDOW' is risky. Use 'TOOL_SETTINGS' or 'EDIT'
+            else:
+                 sub.prop(props, "prompt", text="")
+            
+            # 3. Right: Send Button
+            sub_btn = row.row(align=True)
+            if not props.use_text_block_input:
+                sub_btn.scale_y = 2.5 # Match input height
+                
+            sub_btn.operator("gemini.send_prompt", text="", icon='PAPER_PLANE')
+            
+            # Text Block Toggle
+            row_opt = layout.row(align=True)
+            row_opt.prop(props, "use_text_block_input", toggle=True, text="Use Multi-line Text Block", icon='FILE_TEXT')
+            
+            # If showing text block, give a big helper button
+            if props.use_text_block_input:
+                row_helper = layout.row()
+                row_helper.operator("gemini.open_text_editor", text="Open Multi-line Editor (Ctrl+Enter)", icon='TEXT')
 
-        if props.response:
-            wrap_width = max(10, int(context.region.width / 7))
-            lines = props.response.split('\n')
-            for line in lines:
-                wrapped_lines = textwrap.wrap(line, width=wrap_width, replace_whitespace=False)
-                if not wrapped_lines:
-                    col.label(text="")
-                else:
-                    for wrapped_line in wrapped_lines:
-                        col.label(text=wrapped_line)
-        
-        if "```python" in props.response:
-            layout.operator("gemini.execute_code", icon='PLAY')
+            layout.separator()
+            layout.label(text="Gemini Response:")
+            
+            box = layout.box()
+            col = box.column()
+
+            if props.response:
+                # Ensure we have a valid context region width for wrapping
+                region_width = context.region.width if context.region else 300
+                wrap_width = max(20, int(region_width / 7)) # Adjust divisor as needed
+                
+                lines = props.response.split('\n')
+                for line in lines:
+                    wrapped_lines = textwrap.wrap(line, width=wrap_width, replace_whitespace=False)
+                    if not wrapped_lines:
+                        col.label(text="")
+                    else:
+                        for wrapped_line in wrapped_lines:
+                            col.label(text=wrapped_line)
+            else:
+                col.label(text="Awaiting prompt...")
+            
+            if "```python" in props.response:
+                layout.operator("gemini.execute_code", icon='PLAY')
+
+        except Exception as e:
+            layout.label(text="UI Error: Check Console", icon='ERROR')
+            print(f"UI Error: {e}")
