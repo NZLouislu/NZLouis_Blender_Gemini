@@ -18,6 +18,11 @@ try:
 except ImportError:
     genai = None
 
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
+
 SYSTEM_PROMPT = """You are an expert Blender Python automation assistant.
 YOUR GOAL: Generate executable 'bpy' Python scripts to fulfill the user's request.
 
@@ -151,8 +156,11 @@ def get_available_models(api_key):
         print(f"Could not fetch models: {e}")
         return []
 
-def send_prompt_to_gemini(api_key, model_name, prompt_text):
-    """Sends a prompt to the specified Gemini model with a system instruction."""
+def send_prompt_to_gemini(api_key, model_name, prompt_text, image_path=None):
+    """
+    Sends a prompt to the specified Gemini model.
+    Supports text-only or text+image (multimodal) if an image_path is provided.
+    """
     if not genai:
         return "Error: 'google-generativeai' library not installed."
         
@@ -160,7 +168,19 @@ def send_prompt_to_gemini(api_key, model_name, prompt_text):
         genai.configure(api_key=api_key)
         # model_name now correctly contains the "models/" prefix.
         model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_PROMPT)
-        response = model.generate_content(prompt_text)
+        
+        content = [prompt_text]
+        
+        if image_path:
+            if not Image:
+                return "Error: 'Pillow' (PIL) library not installed, cannot process images."
+            try:
+                img = Image.open(image_path)
+                content.append(img)
+            except Exception as img_err:
+                return f"Error loading image: {img_err}"
+
+        response = model.generate_content(content)
         return response.text
     except Exception as e:
         # Return the actual error from the API for better debugging.
