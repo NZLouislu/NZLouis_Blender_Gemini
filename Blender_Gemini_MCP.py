@@ -312,7 +312,7 @@ class GEMINI_PT_panel(bpy.types.Panel):
             # --- Attachments List ---
             if props.images:
                 box = layout.box()
-                box.label(text="Attachments:", icon='CLIP') # 'CLIP' might not exist, use 'FILE' or default
+                box.label(text="Attachments:", icon='FILE')
                 row = box.row()
                 
                 # Simple list of chips
