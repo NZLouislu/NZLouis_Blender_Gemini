@@ -19,9 +19,10 @@ except ImportError:
     genai = None
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageGrab
 except ImportError:
     Image = None
+    ImageGrab = None
 
 SYSTEM_PROMPT = """You are an expert Blender Python automation assistant.
 YOUR GOAL: Generate executable 'bpy' Python scripts to fulfill the user's request.
@@ -156,35 +157,56 @@ def get_available_models(api_key):
         print(f"Could not fetch models: {e}")
         return []
 
-def send_prompt_to_gemini(api_key, model_name, prompt_text, image_path=None):
+def send_prompt_to_gemini(api_key, model_name, prompt_text, image_paths=None):
     """
     Sends a prompt to the specified Gemini model.
-    Supports text-only or text+image (multimodal) if an image_path is provided.
+    Supports text-only or text+images (multimodal) if image_paths is provided.
+    image_paths: List of file paths to images.
     """
     if not genai:
         return "Error: 'google-generativeai' library not installed."
         
     try:
         genai.configure(api_key=api_key)
-        # model_name now correctly contains the "models/" prefix.
         model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_PROMPT)
         
         content = [prompt_text]
         
-        if image_path:
+        if image_paths:
             if not Image:
                 return "Error: 'Pillow' (PIL) library not installed, cannot process images."
-            try:
-                img = Image.open(image_path)
-                content.append(img)
-            except Exception as img_err:
-                return f"Error loading image: {img_err}"
+            
+            for path in image_paths:
+                try:
+                    if os.path.exists(path):
+                        img = Image.open(path)
+                        content.append(img)
+                    else:
+                        print(f"Warning: Image path not found: {path}")
+                except Exception as img_err:
+                    return f"Error loading image {path}: {img_err}"
 
         response = model.generate_content(content)
         return response.text
     except Exception as e:
-        # Return the actual error from the API for better debugging.
         return f"An API error occurred: {e}"
+
+def get_clipboard_image(save_path):
+    """
+    Captures image from clipboard and saves it to save_path.
+    Returns True if successful, False otherwise.
+    """
+    if not ImageGrab:
+        return False
+    try:
+        img = ImageGrab.grabclipboard()
+        if isinstance(img, Image.Image):
+            img.save(save_path)
+            return True
+        return False
+    except Exception as e:
+        print(f"Clipboard error: {e}")
+        return False
 
 def extract_python_code(text):
     """Extracts code from a ```python ... ``` block."""

@@ -7,11 +7,20 @@ import os
 import tempfile
 import time
 from . import Blender_Gemini_MCP_utils as utils
+from bpy.props import StringProperty, BoolProperty, PointerProperty, CollectionProperty
+
+# PropertyGroup for Image Attachments
+class GeminiImageItem(bpy.types.PropertyGroup):
+    filepath: StringProperty(name="File Path")
+    name: StringProperty(name="Name")
 
 class GeminiProperties(bpy.types.PropertyGroup):
     prompt: bpy.props.StringProperty(name="Prompt", default="")
     response: bpy.props.StringProperty(name="Response", default="Awaiting prompt...")
     popup_prompt: bpy.props.StringProperty(name="Popup Prompt", default="")
+    
+    # Image Attachments Collection
+    images: CollectionProperty(type=GeminiImageItem)
     
     # New properties for enhanced UX
     use_text_block_input: bpy.props.BoolProperty(
@@ -23,11 +32,98 @@ class GeminiProperties(bpy.types.PropertyGroup):
         name="Input Text", 
         type=bpy.types.Text
     )
-    include_screenshot: bpy.props.BoolProperty(
-        name="Include Screenshot", 
-        description="Capture the current 3D Viewport and send it to Gemini", 
-        default=False
-    )
+
+class GEMINI_OT_add_image(bpy.types.Operator):
+    bl_label = "Add Image"
+    bl_idname = "gemini.add_image"
+    
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+
+    def execute(self, context):
+        if self.filepath:
+            item = context.scene.gemini_properties.images.add()
+            item.filepath = self.filepath
+            item.name = os.path.basename(self.filepath)
+            self.report({'INFO'}, f"Added image: {item.name}")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+class GEMINI_OT_paste_image(bpy.types.Operator):
+    bl_label = "Paste Image"
+    bl_idname = "gemini.paste_image"
+    bl_description = "Paste image from clipboard"
+
+    def execute(self, context):
+        temp_dir = tempfile.gettempdir()
+        timestamp = int(time.time())
+        filename = f"gemini_paste_{timestamp}.png"
+        filepath = os.path.join(temp_dir, filename)
+        
+        if utils.get_clipboard_image(filepath):
+            item = context.scene.gemini_properties.images.add()
+            item.filepath = filepath
+            item.name = "Clipboard Image"
+            self.report({'INFO'}, "Image pasted from clipboard")
+        else:
+            self.report({'WARNING'}, "No image found in clipboard")
+        
+        return {'FINISHED'}
+
+class GEMINI_OT_remove_image(bpy.types.Operator):
+    bl_label = "Remove Image"
+    bl_idname = "gemini.remove_image"
+    
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        props = context.scene.gemini_properties
+        props.images.remove(self.index)
+        return {'FINISHED'}
+
+class GEMINI_OT_capture_screenshot(bpy.types.Operator):
+    bl_label = "Capture Screenshot"
+    bl_idname = "gemini.capture_screenshot"
+    bl_description = "Capture current viewport screenshot"
+
+    def execute(self, context):
+        try:
+            temp_dir = tempfile.gettempdir()
+            timestamp = int(time.time())
+            filename = f"gemini_screen_{timestamp}.png"
+            image_path = os.path.join(temp_dir, filename)
+            
+            original_filepath = context.scene.render.filepath
+            context.scene.render.filepath = image_path
+            context.scene.render.image_settings.file_format = 'PNG'
+            
+            bpy.ops.render.opengl(write_still=True, view_context=False)
+            
+            context.scene.render.filepath = original_filepath
+            
+            item = context.scene.gemini_properties.images.add()
+            item.filepath = image_path
+            item.name = "Screenshot"
+            self.report({'INFO'}, "Screenshot captured")
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"Screenshot failed: {e}")
+            
+        return {'FINISHED'}
+
+# Menu for the Image Button
+class GEMINI_MT_image_menu(bpy.types.Menu):
+    bl_label = "Add Image"
+    bl_idname = "GEMINI_MT_image_menu"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("gemini.add_image", text="Upload Image", icon='FILE_FOLDER')
+        layout.operator("gemini.paste_image", text="Paste from Clipboard", icon='PASTE_DOWN')
+        layout.operator("gemini.capture_screenshot", text="Capture Screenshot", icon='SCREEN_BACK')
+
 
 class GEMINI_OT_send_prompt(bpy.types.Operator):
     bl_label = "Send Prompt"
@@ -64,48 +160,18 @@ class GEMINI_OT_send_prompt(bpy.types.Operator):
             self.report({'INFO'}, "Prompt is empty.")
             return {'CANCELLED'}
         
-        # Screenshot Logic
-        image_path = None
-        if props.include_screenshot:
-            try:
-                # Create a temporary path for the screenshot
-                temp_dir = tempfile.gettempdir()
-                timestamp = int(time.time())
-                image_path = os.path.join(temp_dir, f"gemini_screenshot_{timestamp}.png")
-                
-                # Capture the active 3D view (or current context)
-                # We use write_still=True to save it. 
-                # Note: This captures the viewport as seen.
-                bpy.ops.render.opengl(write_still=True, view_context=True)
-                
-                # Check where Blender saved it. render.opengl uses render.filepath.
-                # We need to temporarily override filepath or move the file?
-                # Actually, bpy.ops.render.opengl respects `bpy.context.scene.render.filepath`
-                # BETTER APPROACH: Set filepath temporarily
-                
-                original_filepath = context.scene.render.filepath
-                context.scene.render.filepath = image_path
-                context.scene.render.image_settings.file_format = 'PNG'
-                
-                # Capture
-                bpy.ops.render.opengl(write_still=True, view_context=False)
-                
-                # Restore
-                context.scene.render.filepath = original_filepath
-                
-                self.report({'INFO'}, "Screenshot captured.")
-                
-            except Exception as e:
-                self.report({'ERROR'}, f"Screenshot failed: {e}")
-                image_path = None # Fallback to text only
+        # Prepare Image Paths
+        final_image_paths = []
+        for img in props.images:
+            final_image_paths.append(img.filepath)
 
         props.response = "Generating response..."
         self._thread_result.clear()
 
-        def threaded_function(api_key, model, prompt, img_path, result_container):
+        def threaded_function(api_key, model, prompt, img_paths, result_container):
             print("Gemini Thread: Starting request...")
             try:
-                response_text = utils.send_prompt_to_gemini(api_key, model, prompt, img_path)
+                response_text = utils.send_prompt_to_gemini(api_key, model, prompt, img_paths)
                 result_container['result'] = response_text
                 print("Gemini Thread: Request successful.")
             except Exception as e:
@@ -113,14 +179,11 @@ class GEMINI_OT_send_prompt(bpy.types.Operator):
                 result_container['error'] = error_msg
                 print(f"Gemini Thread: {error_msg}")
             
-            # Clean up temp image
-            if img_path and os.path.exists(img_path):
-                try:
-                    os.remove(img_path)
-                except:
-                    pass
+            # Note: We do NOT delete images here automatically as user might want to drag/drop multiple times.
+            # But users might expect temp screenshots to go away. 
+            # For this version, we keeping them is safer.
 
-        self._thread = threading.Thread(target=threaded_function, args=(prefs.api_key, prefs.model_list, prompt_text, image_path, self._thread_result))
+        self._thread = threading.Thread(target=threaded_function, args=(prefs.api_key, prefs.model_list, prompt_text, final_image_paths, self._thread_result))
         self._thread.start()
 
         self._timer = context.window_manager.event_timer_add(0.1, window=context.window)
@@ -208,32 +271,55 @@ class GEMINI_PT_panel(bpy.types.Panel):
             layout.label(text="Please set API Key in Preferences.", icon='ERROR')
             return
 
-        layout.label(text="Enter Prompt:")
+        # --- Attachments List ---
+        if props.images:
+            box = layout.box()
+            box.label(text="Attachments:", icon='clip')
+            row = box.row()
+            row.scale_x = 1.0
+            
+            # Simple list of chips
+            # Ideally this would be a UIList but a horizontal flow is fine for few items
+            flow = box.grid_flow(row_major=True, columns=0, even_columns=False, even_rows=False, align=True)
+            for i, img in enumerate(props.images):
+                row = flow.row(align=True)
+                row.label(text=img.name, icon='IMAGE_DATA')
+                op = row.operator("gemini.remove_image", text="", icon='X')
+                op.index = i
+
+        # --- Main Chat Input Area ---
+        layout.label(text="Deepmind Agent:")
         
-        # Prompt Input Mode Toggle
-        row = layout.row(align=True)
-        row.prop(props, "use_text_block_input", toggle=True, text="ABC", icon='FILE_TEXT')
-        row.prop(props, "include_screenshot", toggle=True, text="", icon='IMAGE_DATA')
+        # We create a single row box to simulate the "Chat Area"
+        # [ Image Menu ] [ Text Input (Expanded) ] [ Send ]
+        
+        box = layout.box()
+        row = box.row(align=True)
+        
+        # 1. Left: Image Button (Menu)
+        row.menu("GEMINI_MT_image_menu", text="", icon='IMAGE_DATA')
+        
+        # 2. Center: Input
+        # Note: scale_y works on the row, making the text box taller.
+        # This simulates the "3 lines" look requested, although it's still one logical line.
+        sub = row.row(align=True)
+        sub.scale_y = 3.0 # Make it TALLER
         
         if props.use_text_block_input:
-            col = layout.column(align=True)
-            col.template_ID(props, "input_text_block", new="text.new", open="text.open")
-            if props.input_text_block:
-                # Button to edit the text block in a new window/area could be added,
-                # but standard UI implies user goes to Text Editor.
-                # We can add a small help label.
-                col.label(text="Edit in Text Editor", icon='INFO')
+             sub.template_ID(props, "input_text_block", new="text.new", open="text.open")
         else:
-            # Simple Mode
-            layout.prop(props, "prompt", text="")
-
-        # Send Button 
-        # (Make it prominent)
-        row = layout.row()
-        row.scale_y = 1.2
-        btn_text = "Send Prompt + Screenshot" if props.include_screenshot else "Send Prompt"
-        row.operator("gemini.send_prompt", text=btn_text)
+             sub.prop(props, "prompt", text="")
         
+        # 3. Right: Send Button
+        sub_btn = row.row(align=True)
+        sub_btn.scale_y = 3.0 # Match height
+        sub_btn.operator("gemini.send_prompt", text="", icon='PAPER_PLANE')
+        
+        # Text Block Toggle (Small underneath or near)
+        # Putting it in a sub-row below meant for options
+        row_opt = layout.row(align=True)
+        row_opt.prop(props, "use_text_block_input", toggle=True, text="Use Multi-line Text Block", icon='FILE_TEXT')
+
         layout.separator()
         layout.label(text="Gemini Response:")
         
