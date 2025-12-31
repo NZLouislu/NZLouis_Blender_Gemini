@@ -336,21 +336,22 @@ class GEMINI_PT_panel(bpy.types.Panel):
             sub = row.row(align=True)
             
             # Restore Height for "Textarea" feel (Requested by User)
+            # Note: StringProperty is single-line only. For multi-line, use Text Block mode.
             if not props.use_text_block_input:
-                sub.scale_y = 2.5 
+                sub.scale_y = 1.5 
             
             if props.use_text_block_input:
                  sub.template_ID(props, "input_text_block", new="text.new", open="text.open")
-                 sub.operator("gemini.open_text_editor", text="", icon='WINDOW') # 'WINDOW' is risky. Use 'TOOL_SETTINGS' or 'EDIT'
+                 sub.operator("gemini.open_text_editor", text="", icon='OPTIONS')
             else:
                  sub.prop(props, "prompt", text="")
             
             # 3. Right: Send Button
             sub_btn = row.row(align=True)
             if not props.use_text_block_input:
-                sub_btn.scale_y = 2.5 # Match input height
+                sub_btn.scale_y = 1.5 # Match input height
                 
-            sub_btn.operator("gemini.send_prompt", text="", icon='PAPER_PLANE')
+            sub_btn.operator("gemini.send_prompt", text="", icon='PLAY')
             
             # Text Block Toggle
             row_opt = layout.row(align=True)
