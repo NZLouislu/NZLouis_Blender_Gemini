@@ -3,12 +3,14 @@
 import bpy
 from . import Blender_Gemini_MCP_utils as utils
 
-_model_list_cache = [
+# Default fallback models so the UI is never empty
+DEFAULT_MODELS = [
     ("gemini-3-flash-preview", "Gemini 3 Flash Preview", "Latest Gemini 3.0 model"),
-    ("gemini-2.5-flash", "Gemini 2.5 Flash", "Fast and efficient"),
-    ("gemini-2.5-pro", "Gemini 2.5 Pro", "Advanced reasoning"),
     ("gemini-2.0-flash-exp", "Gemini 2.0 Flash Exp", "Stable fallback"),
+    ("gemini-1.5-flash", "Gemini 1.5 Flash", "Legacy stable"),
 ]
+
+_model_list_cache = list(DEFAULT_MODELS)
 
 def get_models_for_enum(self, context):
     global _model_list_cache
@@ -18,12 +20,14 @@ def refresh_models_background(api_key):
     print("Refreshing Gemini models...")
     global _model_list_cache
     models = utils.get_available_models(api_key)
+    
     if models:
         _model_list_cache = models
         print(f"Models found: {[m[0] for m in models]}")
     else:
-        _model_list_cache = [("gemini-3-flash-preview", "No models found (check API Key)", "")]
-        print("No models found or API key is invalid.")
+        # If fetch fails, revert to defaults but try to keep user selection valid
+        print("Model fetch failed, using default list.")
+        _model_list_cache = list(DEFAULT_MODELS)
     
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
