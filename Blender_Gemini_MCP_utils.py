@@ -64,9 +64,17 @@ def test_api_connection(api_key):
         
         if not gemini_models:
             return (False, "No Gemini models found")
+
+        # Sort to show the newest/best models in the message
+        gemini_models.sort(key=lambda x: (
+            '3' not in x.name and '3.0' not in x.name,
+            '2.5' not in x.name,
+            '2.0' not in x.name,
+            x.name
+        ))
         
         model_names = [m.name for m in gemini_models[:3]]
-        return (True, f"Connection successful! Found {len(gemini_models)} models: {', '.join(model_names)}")
+        return (True, f"Connection successful! Found {len(gemini_models)} models: {', '.join(model_names)}...")
         
     except Exception as e:
         error_msg = str(e)
@@ -87,17 +95,47 @@ def get_available_models(api_key):
         genai.configure(api_key=api_key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
-        gemini_models = [model for model in models if 'gemini' in model.lower()]
+        # Strictly filter models based on user request (Clean List)
+        # Keep: 3.x, 2.5 Flash/Pro, 2.0 Flash/Pro
+        # Exclude: Lite, Image, TTS, specific versions (001, 002) if aliases exist
         
-        gemini_models_sorted = sorted(gemini_models, key=lambda x: (
-            '3' not in x and '3.0' not in x,
-            '2.0' not in x,
-            'flash' not in x.lower(),
-            'pro' not in x.lower(),
-            x
+        filtered_models = []
+        for m in models:
+            name_lower = m.name.lower()
+            
+            # Must be a Gemini model
+            if 'gemini' not in name_lower:
+                continue
+            
+            # Must be one of the core generations
+            if not any(v in name_lower for v in ['gemini-3', 'gemini-2.5', 'gemini-2.0']):
+                continue
+                
+            # Exclude unwanted variations
+            if any(x in name_lower for x in ['lite', 'image', 'audio', 'tts', 'tuning', 'legacy']):
+                continue
+            
+            # Filter out specific dated versions if they create clutter (e.g. 001, 002)
+            # We prefer names like "gemini-1.5-flash" over "gemini-1.5-flash-001"
+            # But for 3.0 preview we keep it.
+            if re.search(r'-\d{3}$', m.name): # Ends in -001, -002 etc
+                continue
+                
+            filtered_models.append(m)
+
+        # Sort: 3.0 -> 2.5 -> 2.0 (Pro then Flash)
+        filtered_models.sort(key=lambda x: (
+            '3' not in x.name and '3.0' not in x.name, # 3.0 First
+            '2.5' not in x.name,                       # then 2.5
+            '2.0' not in x.name,                       # then 2.0
+            'pro' not in x.name.lower(),               # Pro before Flash? Or Flash before Pro? 
+                                                       # Usually Flash is default, but Pro is stronger. 
+                                                       # Let's group by version, then alphabetical.
+             x.name
         ))
         
-        return [(model, model.replace("models/", "").replace("-"," ").title(), "") for model in gemini_models_sorted]
+        # Format for Blender Enum: (identifier, name, description)
+        return [(m.name, m.name.replace("models/", "").replace("-", " ").title(), "") for m in filtered_models]
     
     except Exception as e:
         print(f"Could not fetch models: {e}")

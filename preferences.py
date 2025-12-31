@@ -6,8 +6,9 @@ from . import Blender_Gemini_MCP_utils as utils
 # Default fallback models so the UI is never empty
 DEFAULT_MODELS = [
     ("gemini-3-flash-preview", "Gemini 3 Flash Preview", "Latest Gemini 3.0 model"),
+    ("gemini-2.5-flash", "Gemini 2.5 Flash", "Fast and efficient"),
+    ("gemini-2.5-pro", "Gemini 2.5 Pro", "Advanced reasoning"),
     ("gemini-2.0-flash-exp", "Gemini 2.0 Flash Exp", "Stable fallback"),
-    ("gemini-1.5-flash", "Gemini 1.5 Flash", "Legacy stable"),
 ]
 
 _model_list_cache = list(DEFAULT_MODELS)
@@ -15,6 +16,15 @@ _model_list_cache = list(DEFAULT_MODELS)
 def get_models_for_enum(self, context):
     global _model_list_cache
     return _model_list_cache
+
+def on_model_selection(self, context):
+    prefs = context.preferences.addons[__package__].preferences
+    # Provide immediate feedback to user
+    print(f"Gemini Model Changed to: {prefs.model_list}")
+    # We can't easily show a popup from a property update, but we can print to console
+    # or rely on the UI simply showing the new value.
+    # A trick to show a transient message is using toggle operator, but simpler is best.
+    pass
 
 def refresh_models_background(api_key):
     print("Refreshing Gemini models...")
@@ -54,6 +64,7 @@ class GeminiAddonPreferences(bpy.types.AddonPreferences):
         name="Model",
         description="Select the Gemini model to use",
         items=get_models_for_enum,
+        update=on_model_selection, 
     )
     
     def draw(self, context):
