@@ -1,11 +1,11 @@
 # __init__.py
 
 bl_info = {
-    "name": "NZLouis Blender Gemini Assistant",
+    "name": "Gemini AI Assistant",
     "author": "Louis (based on Gabriel Netto's original addon)",
     "version": (2, 0, 0),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > NZLouis Gemini",
+    "location": "View3D > Sidebar > Gemini AI",
     "description": "Control Blender with Gemini 3.0 Flash. Optimized for AI digital twins workflows.",
     "warning": "",
     "doc_url": "https://github.com/nzlouis/blender-gemini-assistant",
