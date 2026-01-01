@@ -322,6 +322,20 @@ class GEMINI_OT_execute_code(bpy.types.Operator):
         
         return {'FINISHED'}
 
+class GEMINI_OT_copy_response(bpy.types.Operator):
+    bl_label = "Copy Response"
+    bl_idname = "gemini.copy_response"
+    bl_description = "Copy the full Gemini response to the clipboard"
+
+    def execute(self, context):
+        props = context.scene.gemini_properties
+        if props.response:
+            context.window_manager.clipboard = props.response
+            self.report({'INFO'}, "Response copied to clipboard.")
+        else:
+            self.report({'WARNING'}, "Response is empty.")
+        return {'FINISHED'}
+
 class GEMINI_OT_fix_error(bpy.types.Operator):
     bl_label = "Ask Gemini to Fix Error"
     bl_idname = "gemini.fix_error"
@@ -456,10 +470,18 @@ class GEMINI_PT_panel(bpy.types.Panel):
             
             # ===== RESPONSE AREA (Below buttons) =====
             layout.separator()
-            layout.label(text="Gemini Response:")
             
-            box = layout.box()
-            col = box.column()
+            box_res = layout.box()
+            row_res = box_res.row()
+            row_res.label(text="Gemini Response:", icon='INFO')
+            
+            # Ensure Copy button is prominent
+            row_res.operator("gemini.copy_response", text="Copy", icon='COPY_ID')
+            
+            col = box_res.column()
+            if "An API error occurred" in props.response or "Error:" in props.response:
+                col.alert = True # Turn text red if it's an error
+
 
             if props.response:
                 # Ensure we have a valid context region width for wrapping
