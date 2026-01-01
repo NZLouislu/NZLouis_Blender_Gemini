@@ -402,24 +402,24 @@ class GEMINI_PT_panel(bpy.types.Panel):
             
             # Simulate 3-line textarea with increased height
             if not props.use_text_block_input:
-                sub.scale_y = 2.8  # Increased for 3-line appearance
+                sub.scale_y = 2.8 
             
             if props.use_text_block_input:
-                 sub.template_ID(props, "input_text_block", new="text.new", open="text.open")
-                 sub.operator("gemini.open_text_editor", text="", icon='OPTIONS')
+                 # Simplified: Just show the text block selector, no extra icons
+                 sub.prop(props, "input_text_block", text="")
             else:
                  sub.prop(props, "prompt", text="")
             
             # 3. Right: Send Button
             sub_btn = row.row(align=True)
             if not props.use_text_block_input:
-                sub_btn.scale_y = 2.8  # Match input height
+                sub_btn.scale_y = 2.8 
                 
             sub_btn.operator("gemini.send_prompt", text="", icon='PLAY')
             
-            # Multi-line Text Editor Button (opens editor directly)
+            # Multi-line Text Editor Button (Only shows below the main row)
             row_opt = layout.row(align=True)
-            row_opt.scale_y = 1.2
+            row_opt.scale_y = 1.1
             row_opt.operator("gemini.open_text_editor", text="Use Multi-line Text Block", icon='FILE_TEXT')
 
             # ===== ACTION BUTTONS (ALWAYS VISIBLE!) =====
