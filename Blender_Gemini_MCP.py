@@ -479,8 +479,10 @@ class GEMINI_PT_panel(bpy.types.Panel):
             row_res.operator("gemini.copy_response", text="Copy", icon='COPY_ID')
             
             col = box_res.column()
-            if "An API error occurred" in props.response or "Error:" in props.response:
-                col.alert = True # Turn text red if it's an error
+            # Only alert if the response STARTS with an error message
+            is_api_error = props.response.startswith("An API error occurs") or props.response.startswith("Error:")
+            if is_api_error:
+                col.alert = True 
 
 
             if props.response:

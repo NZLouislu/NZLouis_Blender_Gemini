@@ -25,7 +25,9 @@ except ImportError:
     ImageGrab = None
 
 SYSTEM_PROMPT_TEMPLATE = """You are an expert Blender Python automation assistant.
-YOUR GOAL: Generate executable 'bpy' Python scripts to fulfill the user's request.
+YOUR GOAL:- When isolating scanned objects, prioritize 'bpy.ops.mesh.separate(type="LOOSE")' instead of automatic deletion logic, as the scan subject might not be the largest component by vertex count.
+- Avoid deleting data unless explicitly told 'Delete selected'. If asked to 'keep', it is safer to separate and let the user delete the rest.
+- Ensure the user is in the correct mode (Object/Edit) before running operations.
 
 BLENDER VERSION: {blender_version}
 AVAILABLE RENDER ENGINES: BLENDER_EEVEE, BLENDER_WORKBENCH, CYCLES (NOT EEVEE_NEXT)
