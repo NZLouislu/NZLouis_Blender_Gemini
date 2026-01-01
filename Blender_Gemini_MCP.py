@@ -14,6 +14,14 @@ class GeminiImageItem(bpy.types.PropertyGroup):
     filepath: StringProperty(name="File Path")
     name: StringProperty(name="Name")
 
+def update_use_text_block(self, context):
+    if self.use_text_block_input and not self.input_text_block:
+        if "Gemini Prompt" in bpy.data.texts:
+            self.input_text_block = bpy.data.texts["Gemini Prompt"]
+        else:
+            self.input_text_block = bpy.data.texts.new("Gemini Prompt")
+            self.input_text_block.write("# Enter your prompt here. Ctrl+Enter for new line.\n")
+
 class GeminiProperties(bpy.types.PropertyGroup):
     prompt: bpy.props.StringProperty(name="Prompt", default="")
     response: bpy.props.StringProperty(name="Response", default="Awaiting prompt...")
@@ -26,7 +34,8 @@ class GeminiProperties(bpy.types.PropertyGroup):
     use_text_block_input: bpy.props.BoolProperty(
         name="Use Text Block", 
         description="Use a Text Block for multi-line prompts", 
-        default=False  # Default to simple mode with tall input box
+        default=False,
+        update=update_use_text_block
     )
     input_text_block: bpy.props.PointerProperty(
         name="Input Text", 
@@ -361,13 +370,9 @@ class GEMINI_PT_panel(bpy.types.Panel):
                 layout.label(text="Please set API Key in Preferences.", icon='ERROR')
                 return
 
-            # Auto-create text block if multi-line mode is on but no block exists
-            if props.use_text_block_input and not props.input_text_block:
-                if "Gemini Prompt" in bpy.data.texts:
-                    props.input_text_block = bpy.data.texts["Gemini Prompt"]
-                else:
-                    props.input_text_block = bpy.data.texts.new("Gemini Prompt")
-                    props.input_text_block.write("# Enter your prompt here. Ctrl+Enter for new line.\n")
+            if not prefs or not prefs.api_key:
+                layout.label(text="Please set API Key in Preferences.", icon='ERROR')
+                return
 
             # --- Attachments List ---
             if props.images:
