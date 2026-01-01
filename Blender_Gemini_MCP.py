@@ -146,6 +146,12 @@ class GEMINI_OT_open_text_editor(bpy.types.Operator):
             else:
                 props.input_text_block = bpy.data.texts.new("Gemini Prompt")
         
+        # Sync: If user has text in the quick prompt, move it to the text block
+        if props.prompt.strip():
+            props.input_text_block.clear()
+            props.input_text_block.write(props.prompt)
+            # props.prompt = "" # Optional: clear quick prompt after sync
+        
         # Open a new window with the Text Editor
         # We use a slight hack: duplicate the current area into a new window, then switch it.
         # OR simpler: bpy.ops.screen.userpref_show() is for prefs.
@@ -195,19 +201,16 @@ class GEMINI_OT_send_prompt(bpy.types.Operator):
             self.report({'ERROR'}, "Please set your Gemini API Key in the addon preferences.")
             return {'CANCELLED'}
         
-        # Determine Prompt Source
-        prompt_text = ""
-        if self.from_popup:
-            prompt_text = props.popup_prompt
-        elif props.use_text_block_input:
-            if props.input_text_block:
-                # Read all lines from the text block
+        # Determine Prompt Source: Priority to the visible Quick Prompt
+        prompt_text = props.prompt
+        
+        # If Quick Prompt is empty, check the Text Block
+        if not prompt_text.strip():
+            if props.use_text_block_input and props.input_text_block:
                 prompt_text = props.input_text_block.as_string()
             else:
-                self.report({'WARNING'}, "No Text Block selected.")
+                self.report({'INFO'}, "Prompt is empty.")
                 return {'CANCELLED'}
-        else:
-            prompt_text = props.prompt
 
         if not prompt_text.strip():
             self.report({'INFO'}, "Prompt is empty.")
@@ -397,30 +400,20 @@ class GEMINI_PT_panel(bpy.types.Panel):
             # 1. Left: Image Button (Menu)
             row.menu("GEMINI_MT_image_menu", text="", icon='IMAGE_DATA')
             
-            # 2. Center: Input
+            # 2. Center: Input (Always StringProperty for quick entry)
             sub = row.row(align=True)
-            
-            # Simulate 3-line textarea with increased height
-            if not props.use_text_block_input:
-                sub.scale_y = 2.8 
-            
-            if props.use_text_block_input:
-                 # Simplified: Just show the text block selector, no extra icons
-                 sub.prop(props, "input_text_block", text="")
-            else:
-                 sub.prop(props, "prompt", text="")
+            sub.scale_y = 2.8 
+            sub.prop(props, "prompt", text="")
             
             # 3. Right: Send Button
             sub_btn = row.row(align=True)
-            if not props.use_text_block_input:
-                sub_btn.scale_y = 2.8 
-                
+            sub_btn.scale_y = 2.8 
             sub_btn.operator("gemini.send_prompt", text="", icon='PLAY')
             
-            # Multi-line Text Editor Button (Only shows below the main row)
+            # Additional Option: Open Multi-line Editor
             row_opt = layout.row(align=True)
             row_opt.scale_y = 1.1
-            row_opt.operator("gemini.open_text_editor", text="Use Multi-line Text Block", icon='FILE_TEXT')
+            row_opt.operator("gemini.open_text_editor", text="Open Detailed Multi-line Editor", icon='FILE_TEXT')
 
             # ===== ACTION BUTTONS (ALWAYS VISIBLE!) =====
             # Show Execute/Fix buttons HERE, before response area
