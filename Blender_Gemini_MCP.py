@@ -410,10 +410,15 @@ class GEMINI_PT_panel(bpy.types.Panel):
             sub_btn.scale_y = 2.8 
             sub_btn.operator("gemini.send_prompt", text="", icon='PLAY')
             
-            # Additional Option: Open Multi-line Editor
-            row_opt = layout.row(align=True)
-            row_opt.scale_y = 1.1
-            row_opt.operator("gemini.open_text_editor", text="Open Detailed Multi-line Editor", icon='FILE_TEXT')
+            # --- Quick Actions Row ---
+            row_actions = layout.row(align=True)
+            row_actions.scale_y = 1.2
+            row_actions.operator("gemini.open_text_editor", text="Text Editor", icon='FILE_TEXT')
+            row_actions.operator("gemini.paste_image", text="Paste Image", icon='PASTEDOWN')
+            row_actions.operator("gemini.capture_screenshot", text="Screenshot", icon='FULLSCREEN_ENTER')
+            
+            if not utils.Image:
+                layout.label(text="Hint: Install 'Pillow' for clipboard support", icon='INFO')
 
             # ===== ACTION BUTTONS (ALWAYS VISIBLE!) =====
             # Show Execute/Fix buttons HERE, before response area
