@@ -26,7 +26,7 @@ class GeminiProperties(bpy.types.PropertyGroup):
     use_text_block_input: bpy.props.BoolProperty(
         name="Use Text Block", 
         description="Use a Text Block for multi-line prompts", 
-        default=False
+        default=True  # Changed to True for better multi-line UX
     )
     input_text_block: bpy.props.PointerProperty(
         name="Input Text", 
@@ -361,6 +361,14 @@ class GEMINI_PT_panel(bpy.types.Panel):
                 layout.label(text="Please set API Key in Preferences.", icon='ERROR')
                 return
 
+            # Auto-create text block if multi-line mode is on but no block exists
+            if props.use_text_block_input and not props.input_text_block:
+                if "Gemini Prompt" in bpy.data.texts:
+                    props.input_text_block = bpy.data.texts["Gemini Prompt"]
+                else:
+                    props.input_text_block = bpy.data.texts.new("Gemini Prompt")
+                    props.input_text_block.write("# Enter your prompt here. Ctrl+Enter for new line.\n")
+
             # --- Attachments List ---
             if props.images:
                 box = layout.box()
@@ -414,6 +422,21 @@ class GEMINI_PT_panel(bpy.types.Panel):
                 row_helper = layout.row()
                 row_helper.operator("gemini.open_text_editor", text="Open Multi-line Editor (Ctrl+Enter)", icon='TEXT')
 
+            # ===== ACTION BUTTONS (ALWAYS VISIBLE!) =====
+            # Show Execute/Fix buttons HERE, before response area
+            # This ensures they're always visible even with long responses
+            layout.separator()
+            
+            if "```python" in props.response:
+                row = layout.row(align=True)
+                row.scale_y = 1.3  # Make buttons prominent
+                row.operator("gemini.execute_code", icon='PLAY', text="Execute Code")
+                
+                # Show 'Fix Error' button if there was an execution error
+                if props.last_error:
+                    row.operator("gemini.fix_error", icon='FILE_REFRESH', text="Fix Error")
+            
+            # ===== RESPONSE AREA (Below buttons) =====
             layout.separator()
             layout.label(text="Gemini Response:")
             
@@ -423,27 +446,30 @@ class GEMINI_PT_panel(bpy.types.Panel):
             if props.response:
                 # Ensure we have a valid context region width for wrapping
                 region_width = context.region.width if context.region else 300
-                wrap_width = max(20, int(region_width / 7)) # Adjust divisor as needed
+                wrap_width = max(20, int(region_width / 7))
                 
                 lines = props.response.split('\n')
+                # Limit displayed lines to prevent excessive panel height
+                max_display_lines = 50
+                displayed_lines = 0
+                
                 for line in lines:
+                    if displayed_lines >= max_display_lines:
+                        col.label(text="... (Response truncated. See Text Editor for full output)")
+                        break
+                    
                     wrapped_lines = textwrap.wrap(line, width=wrap_width, replace_whitespace=False)
                     if not wrapped_lines:
                         col.label(text="")
+                        displayed_lines += 1
                     else:
                         for wrapped_line in wrapped_lines:
                             col.label(text=wrapped_line)
+                            displayed_lines += 1
+                            if displayed_lines >= max_display_lines:
+                                break
             else:
                 col.label(text="Awaiting prompt...")
-            
-            # Action buttons for code execution
-            if "```python" in props.response:
-                row = layout.row(align=True)
-                row.operator("gemini.execute_code", icon='PLAY', text="Execute Code")
-                
-                # Show 'Fix Error' button if there was an execution error
-                if props.last_error:
-                    row.operator("gemini.fix_error", icon='FILE_REFRESH', text="Fix Error")
 
         except Exception as e:
             layout.label(text="UI Error: Check Console", icon='ERROR')
