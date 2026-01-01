@@ -172,6 +172,24 @@ class GEMINI_OT_open_text_editor(bpy.types.Operator):
         
         return {'FINISHED'}
 
+class GEMINI_OT_install_pillow(bpy.types.Operator):
+    bl_label = "Install Pillow Library"
+    bl_idname = "gemini.install_pillow"
+    bl_description = "Automatically install Pillow library for image clipboard support"
+
+    def execute(self, context):
+        import subprocess
+        import sys
+        python_exe = sys.executable
+        try:
+            subprocess.call([python_exe, "-m", "ensurepip"])
+            subprocess.call([python_exe, "-m", "pip", "install", "Pillow"])
+            self.report({'INFO'}, "Pillow installed! Please restart Blender.")
+            return {'FINISHED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to install: {e}")
+            return {'CANCELLED'}
+
 # Menu for the Image Button
 class GEMINI_MT_image_menu(bpy.types.Menu):
     bl_label = "Add Image"
@@ -418,7 +436,9 @@ class GEMINI_PT_panel(bpy.types.Panel):
             row_actions.operator("gemini.capture_screenshot", text="Screenshot", icon='FULLSCREEN_ENTER')
             
             if not utils.Image:
-                layout.label(text="Hint: Install 'Pillow' for clipboard support", icon='INFO')
+                row_err = layout.row()
+                row_err.alert = True
+                row_err.operator("gemini.install_pillow", text="Click to Install Pillow (Required for Clipboard)", icon='CONSOLE')
 
             # ===== ACTION BUTTONS (ALWAYS VISIBLE!) =====
             # Show Execute/Fix buttons HERE, before response area
