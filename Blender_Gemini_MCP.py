@@ -26,7 +26,7 @@ class GeminiProperties(bpy.types.PropertyGroup):
     use_text_block_input: bpy.props.BoolProperty(
         name="Use Text Block", 
         description="Use a Text Block for multi-line prompts", 
-        default=True  # Changed to True for better multi-line UX
+        default=False  # Default to simple mode with tall input box
     )
     input_text_block: bpy.props.PointerProperty(
         name="Input Text", 
@@ -395,10 +395,9 @@ class GEMINI_PT_panel(bpy.types.Panel):
             # 2. Center: Input
             sub = row.row(align=True)
             
-            # Restore Height for "Textarea" feel (Requested by User)
-            # Note: StringProperty is single-line only. For multi-line, use Text Block mode.
+            # Simulate 3-line textarea with increased height
             if not props.use_text_block_input:
-                sub.scale_y = 1.5 
+                sub.scale_y = 2.8  # Increased for 3-line appearance
             
             if props.use_text_block_input:
                  sub.template_ID(props, "input_text_block", new="text.new", open="text.open")
@@ -409,18 +408,14 @@ class GEMINI_PT_panel(bpy.types.Panel):
             # 3. Right: Send Button
             sub_btn = row.row(align=True)
             if not props.use_text_block_input:
-                sub_btn.scale_y = 1.5 # Match input height
+                sub_btn.scale_y = 2.8  # Match input height
                 
             sub_btn.operator("gemini.send_prompt", text="", icon='PLAY')
             
-            # Text Block Toggle
+            # Multi-line Text Editor Button (opens editor directly)
             row_opt = layout.row(align=True)
-            row_opt.prop(props, "use_text_block_input", toggle=True, text="Use Multi-line Text Block", icon='FILE_TEXT')
-            
-            # If showing text block, give a big helper button
-            if props.use_text_block_input:
-                row_helper = layout.row()
-                row_helper.operator("gemini.open_text_editor", text="Open Multi-line Editor (Ctrl+Enter)", icon='TEXT')
+            row_opt.scale_y = 1.2
+            row_opt.operator("gemini.open_text_editor", text="Use Multi-line Text Block", icon='FILE_TEXT')
 
             # ===== ACTION BUTTONS (ALWAYS VISIBLE!) =====
             # Show Execute/Fix buttons HERE, before response area
