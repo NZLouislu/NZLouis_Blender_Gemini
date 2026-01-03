@@ -139,39 +139,115 @@ class GEMINI_OT_open_text_editor(bpy.types.Operator):
     def execute(self, context):
         props = context.scene.gemini_properties
         
-        # Ensure a text block exists
         if not props.input_text_block:
             if "Gemini Prompt" in bpy.data.texts:
                 props.input_text_block = bpy.data.texts["Gemini Prompt"]
             else:
                 props.input_text_block = bpy.data.texts.new("Gemini Prompt")
         
-        # Sync: If user has text in the quick prompt, move it to the text block
-        # Sync: If user has text in the quick prompt, move it to the text block
         if props.prompt.strip():
             props.input_text_block.clear()
             props.input_text_block.write(props.prompt)
-            props.prompt = "" # Clear quick prompt to ensure text block is used
-        
-        # Open a new window with the Text Editor
-        # We use a slight hack: duplicate the current area into a new window, then switch it.
-        # OR simpler: bpy.ops.screen.userpref_show() is for prefs.
-        # bpy.ops.wm.window_new() creates a new window.
+            props.prompt = ""
         
         bpy.ops.wm.window_new()
         new_window = context.window_manager.windows[-1]
         area = new_window.screen.areas[0]
         area.ui_type = 'TEXT_EDITOR'
         
-        # Set the text space to use our text block
         for space in area.spaces:
             if space.type == 'TEXT_EDITOR':
                 space.text = props.input_text_block
-                # Optional: Enable syntax highlight or wrapping
                 space.show_word_wrap = True
                 space.show_line_numbers = True
         
         return {'FINISHED'}
+
+
+class GEMINI_OT_send_from_text_editor(bpy.types.Operator):
+    """Dedicated operator for sending prompts from the Text Editor header."""
+    bl_label = "Send to Gemini"
+    bl_idname = "gemini.send_from_text_editor"
+    bl_description = "Send the current Text block content to Gemini AI"
+    
+    _timer = None
+    _thread = None
+    _thread_result = {}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data and 
+                context.space_data.type == 'TEXT_EDITOR' and 
+                context.space_data.text is not None)
+
+    def execute(self, context):
+        prefs = context.preferences.addons[__package__].preferences
+        props = context.scene.gemini_properties
+
+        if not prefs.api_key:
+            self.report({'ERROR'}, "Please set your Gemini API Key in the addon preferences.")
+            return {'CANCELLED'}
+        
+        text_block = context.space_data.text
+        prompt_text = text_block.as_string()
+        
+        if not prompt_text.strip():
+            self.report({'WARNING'}, "Text Editor is empty. Please enter a prompt.")
+            return {'CANCELLED'}
+        
+        prompt_text = prompt_text.strip()
+        
+        print(f"[Gemini] Sending from Text Editor: {len(prompt_text)} characters, {prompt_text.count(chr(10)) + 1} lines")
+        
+        final_image_paths = []
+        for img in props.images:
+            final_image_paths.append(img.filepath)
+
+        props.response = "Generating response..."
+        self._thread_result.clear()
+
+        def threaded_function(api_key, model, prompt, img_paths, result_container):
+            print("[Gemini] Thread: Starting request...")
+            try:
+                response_text = utils.send_prompt_to_gemini(api_key, model, prompt, img_paths)
+                result_container['result'] = response_text
+                print("[Gemini] Thread: Request successful.")
+            except Exception as e:
+                error_msg = f"An unexpected error occurred: {e}"
+                result_container['error'] = error_msg
+                print(f"[Gemini] Thread: {error_msg}")
+
+        self._thread = threading.Thread(
+            target=threaded_function, 
+            args=(prefs.api_key, prefs.model_list, prompt_text, final_image_paths, self._thread_result)
+        )
+        self._thread.start()
+
+        self._timer = context.window_manager.event_timer_add(0.1, window=context.window)
+        context.window_manager.modal_handler_add(self)
+        
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            if not self._thread.is_alive():
+                props = context.scene.gemini_properties
+                if 'error' in self._thread_result:
+                    props.response = self._thread_result['error']
+                elif 'result' in self._thread_result:
+                    props.response = self._thread_result['result']
+                else:
+                    props.response = "Task finished, but no result was returned. Check the console."
+                
+                for window in context.window_manager.windows:
+                    for area in window.screen.areas:
+                        area.tag_redraw()
+
+                context.window_manager.event_timer_remove(self._timer)
+                self.report({'INFO'}, "Gemini response received. Check the Gemini AI panel.")
+                return {'FINISHED'}
+        
+        return {'PASS_THROUGH'}
 
 class GEMINI_OT_install_pillow(bpy.types.Operator):
     bl_label = "Install Pillow Library"
@@ -536,5 +612,6 @@ class GEMINI_PT_panel(bpy.types.Panel):
 
 def draw_text_editor_header(self, context):
     layout = self.layout
-    layout.separator()
-    layout.operator("gemini.send_prompt", text="Send to Gemini", icon='PLAY')
+    if context.space_data and context.space_data.text:
+        layout.separator()
+        layout.operator("gemini.send_from_text_editor", text="Send to Gemini", icon='PLAY')
