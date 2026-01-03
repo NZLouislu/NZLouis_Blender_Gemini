@@ -59,7 +59,10 @@ def register():
         kmi = km.keymap_items.new(Blender_Gemini_MCP.GEMINI_OT_popup_window.bl_idname, 'G', 'PRESS', alt=True)
         addon_keymaps.append((km, kmi))
 
+    bpy.types.TEXT_HT_header.append(Blender_Gemini_MCP.draw_text_editor_header)
+
 def unregister():
+    bpy.types.TEXT_HT_header.remove(Blender_Gemini_MCP.draw_text_editor_header)
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()

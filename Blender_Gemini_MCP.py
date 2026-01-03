@@ -147,10 +147,11 @@ class GEMINI_OT_open_text_editor(bpy.types.Operator):
                 props.input_text_block = bpy.data.texts.new("Gemini Prompt")
         
         # Sync: If user has text in the quick prompt, move it to the text block
+        # Sync: If user has text in the quick prompt, move it to the text block
         if props.prompt.strip():
             props.input_text_block.clear()
             props.input_text_block.write(props.prompt)
-            # props.prompt = "" # Optional: clear quick prompt after sync
+            props.prompt = "" # Clear quick prompt to ensure text block is used
         
         # Open a new window with the Text Editor
         # We use a slight hack: duplicate the current area into a new window, then switch it.
@@ -219,20 +220,36 @@ class GEMINI_OT_send_prompt(bpy.types.Operator):
             self.report({'ERROR'}, "Please set your Gemini API Key in the addon preferences.")
             return {'CANCELLED'}
         
-        # Determine Prompt Source: Priority to the visible Quick Prompt
-        prompt_text = props.prompt
-        
-        # If Quick Prompt is empty, check the Text Block
-        if not prompt_text.strip():
-            if props.use_text_block_input and props.input_text_block:
-                prompt_text = props.input_text_block.as_string()
-            else:
-                self.report({'INFO'}, "Prompt is empty.")
-                return {'CANCELLED'}
+        # Determine Prompt Source
+        # Logic: 
+        # 1. If triggered from Text Editor, use current text
+        # 2. Else, if Quick Prompt (props.prompt) has content, use it.
+        # 3. Else, use the assigned input_text_block.
 
+        prompt_text = ""
+        
+        # 1. Check valid Text Editor Context
+        is_text_editor = (context.area and context.area.type == 'TEXT_EDITOR' and 
+                          context.space_data and context.space_data.type == 'TEXT_EDITOR')
+        
+        if is_text_editor and context.space_data.text:
+            prompt_text = context.space_data.text.as_string()
+            # Auto-assign this block as our input block if it's not already
+            if props.input_text_block != context.space_data.text:
+                props.input_text_block = context.space_data.text
+        
+        # 2. If not from text editor or empty, check standard properties
         if not prompt_text.strip():
-            self.report({'INFO'}, "Prompt is empty.")
+            if props.prompt.strip():
+                prompt_text = props.prompt
+            elif props.input_text_block:
+                prompt_text = props.input_text_block.as_string()
+        
+        if not prompt_text.strip():
+            self.report({'WARNING'}, "Prompt is empty. Please type in the Box or the Text Editor.")
             return {'CANCELLED'}
+            
+        # ... logic continues ...
         
         # Prepare Image Paths
         final_image_paths = []
@@ -516,3 +533,8 @@ class GEMINI_PT_panel(bpy.types.Panel):
         except Exception as e:
             layout.label(text="UI Error: Check Console", icon='ERROR')
             print(f"UI Error: {e}")
+
+def draw_text_editor_header(self, context):
+    layout = self.layout
+    layout.separator()
+    layout.operator("gemini.send_prompt", text="Send to Gemini", icon='PLAY')
